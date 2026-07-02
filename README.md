@@ -3,4 +3,6 @@ Progetto per il corso di Ingegneria dei Sistemi Software M
 
 - Andrea Passini  
 - Paolo Savino  
-- Alessandra Tolomelli  
+- Alessandra Tolomelli
+
+ Index disponibile [qui](https://alessandratolomelli.github.io/TemaFinale2026/index.html)
