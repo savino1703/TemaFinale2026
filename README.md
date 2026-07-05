@@ -8,6 +8,6 @@
 
 ---
 
-### **Documentazione**
+**Documentazione**
 
 <h4><a href="INSERISCI_IL_LINK_QUI" style="color: #0066cc; text-decoration: none; font-weight: bold;">Sprint 0</a></h4>
