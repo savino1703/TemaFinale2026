@@ -33,7 +33,6 @@ QActor cargoservice context ctxcargoservice {
          * T2: richiesta rinviata      -> il sistema deve tornare/restare DISENGAGED
          * T3: richiesta rifiutata     -> il sistema deve tornare/restare DISENGAGED
          *
-         * Decommentare UNA sola coppia (reply + relativo Goto) alla volta.
          */
 
         // --- T1: accettata ---
@@ -59,7 +58,7 @@ QActor cargoservice context ctxcargoservice {
 
     State engaged {
         println("cargoservice | ENGAGED") color green
-        // TODO (prossimo sprint, vedi domande aperte al committente):
+        // TODO:
         //  - avviare il lampeggio del led (request/reply verso l'attore led)
         //  - attendere il segnale del sonar (container posizionato entro 30s)
         //  - se timeout -> Goto disengaged (richiesta annullata)
