@@ -73,36 +73,23 @@ class Ioport ( name: String, scope: CoroutineScope, isconfined: Boolean=false, i
 					//After Lenzi Aug2002
 					sysaction { //it:State
 					}	 	 
-					 transition(edgeName="t113",targetState="accepted",cond=whenReply("load_accepted"))
-					transition(edgeName="t114",targetState="retrylater",cond=whenReply("load_retrylater"))
-					transition(edgeName="t115",targetState="refused",cond=whenReply("load_refused"))
+					 transition(edgeName="t111",targetState="accepted",cond=whenReply("load_accepted"))
+					transition(edgeName="t112",targetState="retrylater",cond=whenReply("load_retrylater"))
+					transition(edgeName="t113",targetState="refused",cond=whenReply("load_refused"))
 				}	 
 				state("accepted") { //this:State
 					action { //it:State
 						if( checkMsgContent( Term.createTerm("loadAccepted(SLOTID)"), Term.createTerm("loadAccepted(SLOTID)"), 
 						                        currentMsg.msgContent()) ) { //set msgArgList
-								CommUtils.outgreen("ioport | DISPLAY: load accepted - place container in IOPort")
-								 displayMessage = "ACCEPTED - Place container"  
+								CommUtils.outgreen("ioport | DISPLAY: load accepted - Il sistema verificherà la presenza del container tramite il sonar")
+								 displayMessage = "ACCEPTED - Placing container..."  
 						}
-						CommUtils.outmagenta("ioport | [TEST] Container posizionato fisicamente. Attendo 3 secondi prima del check del sensore...")
-						delay(3000) 
 						//genTimer( actor, state )
 					}
 					//After Lenzi Aug2002
 					sysaction { //it:State
 					}	 	 
-					 transition( edgeName="goto",targetState="simula_rilevamento_sensore", cond=doswitch() )
-				}	 
-				state("simula_rilevamento_sensore") { //this:State
-					action { //it:State
-						CommUtils.outgreen("ioport | [TEST] Sensore scattato: CONTAINER DETECTED!")
-						request("container_detected", "containerDetected(none)" ,"cargoservice" )  
-						//genTimer( actor, state )
-					}
-					//After Lenzi Aug2002
-					sysaction { //it:State
-					}	 	 
-					 transition(edgeName="t216",targetState="transfer_in_progress",cond=whenReply("container_ack"))
+					 transition( edgeName="goto",targetState="transfer_in_progress", cond=doswitch() )
 				}	 
 				state("retrylater") { //this:State
 					action { //it:State
@@ -143,7 +130,7 @@ class Ioport ( name: String, scope: CoroutineScope, isconfined: Boolean=false, i
 					//After Lenzi Aug2002
 					sysaction { //it:State
 					}	 	 
-					 transition(edgeName="t317",targetState="transfer_complete",cond=whenDispatch("robot_complete_notification"))
+					 transition(edgeName="t314",targetState="transfer_complete",cond=whenDispatch("robot_complete_notification"))
 				}	 
 				state("transfer_complete") { //this:State
 					action { //it:State

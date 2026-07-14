@@ -35,13 +35,12 @@ with Diagram('cargosystemArch', show=False, outformat='png', graph_attr=graphatt
           sonar=Custom('sonar','./qakicons/symActorWithobjSmall.png')
      with Cluster('ctxrobotsmart', graph_attr=nodeattr):
           robotsmart=Custom('robotsmart(ext)','./qakicons/externalQActor.png')
-     ioport >> Edge(color='magenta', style='solid', decorate='true', label='<load_request<font color="darkgreen"> load_accepted load_retrylater load_refused</font> &nbsp; container_detected<font color="darkgreen"> container_ack</font> &nbsp; >',  fontcolor='magenta') >> cargoservice
-     cargoservice >> Edge(color='magenta', style='solid', decorate='true', label='<find_free_slot<font color="darkgreen"> slot_found slot_full</font> &nbsp; find_occupy<font color="darkgreen"> occupy_done</font> &nbsp; find_release<font color="darkgreen"> release_done</font> &nbsp; >',  fontcolor='magenta') >> hold
+     ioport >> Edge(color='magenta', style='solid', decorate='true', label='<load_request<font color="darkgreen"> load_accepted load_retrylater load_refused</font> &nbsp; >',  fontcolor='magenta') >> cargoservice
+     cargoservice >> Edge(color='magenta', style='solid', decorate='true', label='<check_distance<font color="darkgreen"> distance_response</font> &nbsp; >',  fontcolor='magenta') >> sonar
+     cargoservice >> Edge(color='magenta', style='solid', decorate='true', label='<find_free_slot<font color="darkgreen"> slot_found slot_full</font> &nbsp; find_occupy<font color="darkgreen"> occupy_done</font> &nbsp; >',  fontcolor='magenta') >> hold
      cargorobot >> Edge(color='magenta', style='solid', decorate='true', label='<moverobot<font color="darkgreen"> moverobotdone moverobotfailed</font> &nbsp; >',  fontcolor='magenta') >> robotsmart
      cargoservice >> Edge(color='magenta', style='solid', decorate='true', label='<robot_transfer<font color="darkgreen"> robot_complete robot_failed</font> &nbsp; >',  fontcolor='magenta') >> cargorobot
-     sonar >> Edge(color='blue', style='solid',  decorate='true', label='<sonar_alert &nbsp; sonar_warn &nbsp; sonar_normal &nbsp; >',  fontcolor='blue') >> sonar
      ioport >> Edge(color='blue', style='solid',  decorate='true', label='<display_update &nbsp; >',  fontcolor='blue') >> cargoservice
-     sonar >> Edge(color='blue', style='solid',  decorate='true', label='<sensor_data &nbsp; >',  fontcolor='blue') >> cargoservice
      hold >> Edge(color='blue', style='solid',  decorate='true', label='<slot_is_free &nbsp; slot_is_full &nbsp; >',  fontcolor='blue') >> hold
      cargoservice >> Edge(color='blue', style='solid',  decorate='true', label='<robot_complete_notification &nbsp; >',  fontcolor='blue') >> ioport
      cargoservice >> Edge(color='blue', style='solid',  decorate='true', label='<led_blink &nbsp; >',  fontcolor='blue') >> led
