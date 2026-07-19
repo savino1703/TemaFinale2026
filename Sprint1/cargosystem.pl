@@ -6,10 +6,11 @@ request( load_request, loadRequest(none) ).
 reply( load_accepted, loadAccepted(SLOTID) ).  %%for load_request
 reply( load_retrylater, loadRetryLater(none) ).  %%for load_request
 reply( load_refused, loadRefused(none) ).  %%for load_request
-request( container_detected, containerDetected(none) ).
-reply( container_ack, containerAck(none) ).  %%for container_detected
+request( check_distance, checkDistance(none) ).
+reply( distance_response, distanceResponse(DISTANCE) ).  %%for check_distance
 request( robot_transfer, robotTransfer(SLOT) ).
 reply( robot_complete, robotComplete(FINALSLOT) ).  %%for robot_transfer
+reply( robot_failed, robotFailed(ARG) ).  %%for robot_transfer
 request( find_free_slot, findFreeSlot(none) ).
 reply( slot_found, slotFound(SLOTID) ).  %%for find_free_slot
 reply( slot_full, slotFull(none) ).  %%for find_free_slot
@@ -25,10 +26,8 @@ dispatch( slot_is_free, slot_is_free(none) ).
 dispatch( slot_is_full, slot_is_full(none) ).
 dispatch( sonar_normal, sonar_normal(none) ).
 dispatch( sonar_warn, sonar_warn(none) ).
-dispatch( sonar_alert, sonar_alert(none) ).
 request( moverobot, moverobot(TARGETX,TARGETY,STEPTIME) ).
 reply( moverobotdone, moverobotdone(ARG) ).  %%for moverobot
-reply( robot_failed, robotFailed(ARG) ).  %%for robot_transfer
 reply( moverobotfailed, moverobotfailed(PLANDONE,PLANTODO) ).  %%for moverobot
 request( tuneAtHome, tuneAtHome(X) ).
 reply( tuneDone, tuneDone(X) ).  %%for tuneAtHome

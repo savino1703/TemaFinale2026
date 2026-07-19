@@ -12,11 +12,14 @@ Reply load_accepted         : loadAccepted(SLOTID) for load_request
 Reply load_retrylater       : loadRetryLater(none) for load_request
 Reply load_refused          : loadRefused(none)    for load_request
 
-Request container_detected  : containerDetected(none)
-Reply container_ack         : containerAck(none) for container_detected
+Request check_distance     : checkDistance(none)
+Reply distance_response    : distanceResponse(DISTANCE) for check_distance
 
+// ===== COMUNICAZIONE TRA CARGOSERVICE E CARGOROBOT ====// ===== COMUNICAZIONE TRA CARGOSERVICE E CARGOROBOT ====
 Request robot_transfer     : robotTransfer(SLOT)
 Reply robot_complete        : robotComplete(FINALSLOT) for robot_transfer
+Reply robot_failed    		: robotFailed(ARG)   for robot_transfer
+
 
 // ===== INTERFACCIA LOGICA HOLD =====
 Request find_free_slot      : findFreeSlot(none)
@@ -41,12 +44,10 @@ Dispatch slot_is_full       : slot_is_full(none)
 
 Dispatch sonar_normal       : sonar_normal(none)
 Dispatch sonar_warn         : sonar_warn(none)
-Dispatch sonar_alert        : sonar_alert(none)
 
 // ===== INTERFACCIA ROBOTSMART26 (ExternalQActor) =====
 Request moverobot           : moverobot(TARGETX, TARGETY, STEPTIME)
 Reply moverobotdone         : moverobotdone(ARG) for moverobot
-Reply robot_failed    		: robotFailed(ARG)   for robot_transfer
 Reply moverobotfailed       : moverobotfailed(PLANDONE, PLANTODO) for moverobot
 
 Request tuneAtHome          : tuneAtHome(X)
@@ -155,9 +156,8 @@ QActor hold context ctxcargo {
 QActor cargoservice context ctxcargo {
     [#
         var ioPortOccupied = false
-        var systemWorking = true
         var CurrentSlot = ""
-        var canAccept = false
+        var ContainerDetected = false
     #]
 
     State s0 initial {
@@ -170,21 +170,11 @@ QActor cargoservice context ctxcargo {
     }
     Transition t0
         whenRequest load_request -> handle_load_request
-        whenMsg sensor_data -> update_status
-
-    State update_status {
-        [# systemWorking = false #]
-        println("cargoservice | system OUT OF SERVICE") color red
-    }
-    Goto disengaged
 
 	State handle_load_request {
         println("ioport -> cargoservice | load request") color cyan
-        [#
-            canAccept = !ioPortOccupied && systemWorking
-        #]
     }
-    Goto request_slot if [# canAccept #] else refuse_retry_later
+    Goto request_slot if [# !ioPortOccupied #] else refuse_retry_later
 
     State request_slot {
         request hold -m find_free_slot : findFreeSlot(none)
@@ -222,15 +212,33 @@ QActor cargoservice context ctxcargo {
     Goto disengaged
 
     State engaged {
-        println("cargoservice | waiting for container") color yellow
+        println("cargoservice | waiting for container - Interrogo il sonar...") color yellow
         forward led -m led_blink : ledBlink(on)
+        // Chiede la distanza al sonar
+        request sonar -m check_distance : checkDistance(none)
     }
     Transition t2
-        whenRequest container_detected -> container_arrived
+        whenReply distance_response -> evaluate_distance
+
+    State evaluate_distance {
+        onMsg( distance_response : distanceResponse(DISTANCE) ) {
+            [#
+                val Dist = payloadArg(0).toString().toInt()
+                ContainerDetected = Dist < 80 
+            #]
+        }
+    }
+    Goto container_arrived if [# ContainerDetected #] else retry_check
+
+    State retry_check {
+        println("cargoservice | Container non ancora rilevato. Riprovo tra 2 secondi...") color yellow
+        delay 2000
+    }
+    Goto engaged
 
 	State container_arrived {
-        replyTo container_detected with container_ack : containerAck(none)
-        println("cargoservice | Container detected - requesting robot transfer") color green
+        // Non serve più fare la replyTo container_detected poiché il trigger è interno (sonar)
+        println("cargoservice | Container detected via Sonar - requesting robot transfer") color green
         request cargorobot -m robot_transfer : robotTransfer($CurrentSlot)
     }
     Transition t3
@@ -253,27 +261,10 @@ QActor cargoservice context ctxcargo {
         forward ioport -m robot_complete_notification : robotCompleteNotif($SlotSend)
     }
     Goto disengaged
-
-    State timeout {
-        println("cargoservice | timeout") color red
-        request hold -m find_release : releaseSlot(CurrentSlot)
-    }
-    Transition t5
-        whenReply release_done -> finalize_timeout
-
-    State finalize_timeout {
-        forward led -m led_blink : ledBlink(off)
-        [#
-            ioPortOccupied = false
-            CurrentSlot = ""
-        #]
-    }
-    Goto disengaged
 }
 
-
 // ============================================================
-// QActor: ioport - Interfaccia Utente Autonoma (EX-TESTPLAN INTEGRATO)
+// QActor: ioport - Interfaccia Utente Autonoma 
 // ============================================================
 QActor ioport context ctxcargo {
     [#
@@ -308,20 +299,13 @@ QActor ioport context ctxcargo {
 
 	State accepted {
 	    onMsg( load_accepted : loadAccepted(SLOTID) ) {
-	        println("ioport | DISPLAY: load accepted - place container in IOPort") color green
-	        [# displayMessage = "ACCEPTED - Place container" #]
+	        println("ioport | DISPLAY: load accepted - Il sistema verificherà la presenza del container tramite il sonar") color green
+	        [# displayMessage = "ACCEPTED - Placing container..." #]
 	    }
-        println("ioport | [TEST] Container posizionato fisicamente. Attendo 3 secondi prima del check del sensore...") color magenta
-        delay 3000
+        // Il testplan ora NON invia più container_detected.
+        // Lascia che cargoservice interroghi il sonar autonomamente.
 	}
-	Goto simula_rilevamento_sensore
-
-    State simula_rilevamento_sensore {
-        println("ioport | [TEST] Sensore scattato: CONTAINER DETECTED!") color green
-        request cargoservice -m container_detected : containerDetected(none)
-    }
-    Transition t2
-        whenReply container_ack -> transfer_in_progress
+	Goto transfer_in_progress
 
     State retrylater {
 	    onMsg( load_retrylater : loadRetryLater(none) ) {
@@ -354,7 +338,6 @@ QActor ioport context ctxcargo {
     }
     Goto display_idle
 }
-
 
 // ============================================================
 // QActor: cargorobot - Gestione Movimenti
@@ -488,54 +471,28 @@ QActor markerdevice context ctxcargo {
 } 
 
 // ============================================================
-// QActor: sonar - Sensore di distanza
+// QActor: sonar - Gestione Sensore di Distanza
 // ============================================================
 QActor sonar context ctxcargo {
     [#
         val DFREE = 80
-        var Distance = 50
-        var failureCounter = 0
-        var distanceExceeded = false
-        var criticalFailure = false
+        var Distance = 50 // 50 < 80: simula il container rilevato sul box di carico
     #]
 
     State s0 initial {
 	    println("sonar | started") color blue
 	}
-	Goto monitoring
+	Goto idle
 
-	State monitoring {
-	    [#
-	        distanceExceeded = Distance > DFREE
-	        criticalFailure = failureCounter >= 3
-	    #]
-	    if [# criticalFailure #] {
-	        forward sonar -m sonar_alert : sonar_alert(none)
-	    } else {
-		    if [# distanceExceeded #] {
-		        forward sonar -m sonar_warn : sonar_warn(none)
-		    } else {
-		        forward sonar -m sonar_normal : sonar_normal(none)
-		    }
-	    }
+	State idle {
+	    println("sonar | in attesa di richieste di lettura...") color green
 	}
+	Transition t0
+	    whenRequest check_distance -> handle_check
 
-	State normal_status {
-	    println("sonar | Distance OK") color green
+	State handle_check {
+	    println("sonar | Richiesta ricevuta. Distanza rilevata: $Distance") color cyan
+	    replyTo check_distance with distance_response : distanceResponse($Distance)
 	}
-	Transition t1
-	    whenTime 5000 -> monitoring
-
-	State warning_status {
-	    println("sonar | WARNING") color yellow
-	}
-	Transition t2
-	    whenTime 5000 -> monitoring
-
-	State alert_status {
-	    println("sonar | ALERT") color red
-	    forward cargoservice -m sensor_data : sensorData($Distance)
-	}
-	Transition t3
-	    whenTime 5000 -> monitoring
+	Goto idle
 }

@@ -31,10 +31,7 @@ class Sonar ( name: String, scope: CoroutineScope, isconfined: Boolean=false, is
 		//IF actor.withobj !== null val actor.withobj.name� = actor.withobj.method�ENDIF
 		
 		        val DFREE = 80
-		        var Distance = 50
-		        var failureCounter = 0
-		        var distanceExceeded = false
-		        var criticalFailure = false
+		        var Distance = 50 // 50 < 80: simula il container rilevato sul box di carico
 		return { //this:ActionBasciFsm
 				state("s0") { //this:State
 					action { //it:State
@@ -44,66 +41,28 @@ class Sonar ( name: String, scope: CoroutineScope, isconfined: Boolean=false, is
 					//After Lenzi Aug2002
 					sysaction { //it:State
 					}	 	 
-					 transition( edgeName="goto",targetState="monitoring", cond=doswitch() )
+					 transition( edgeName="goto",targetState="idle", cond=doswitch() )
 				}	 
-				state("monitoring") { //this:State
+				state("idle") { //this:State
 					action { //it:State
-						
-							        distanceExceeded = Distance > DFREE
-							        criticalFailure = failureCounter >= 3
-						if(  criticalFailure  
-						 ){forward("sonar_alert", "sonar_alert(none)" ,"sonar" ) 
-						}
-						else
-						 {if(  distanceExceeded  
-						  ){forward("sonar_warn", "sonar_warn(none)" ,"sonar" ) 
-						 }
-						 else
-						  {forward("sonar_normal", "sonar_normal(none)" ,"sonar" ) 
-						  }
-						 }
+						CommUtils.outgreen("sonar | in attesa di richieste di lettura...")
 						//genTimer( actor, state )
 					}
 					//After Lenzi Aug2002
 					sysaction { //it:State
 					}	 	 
+					 transition(edgeName="t026",targetState="handle_check",cond=whenRequest("check_distance"))
 				}	 
-				state("normal_status") { //this:State
+				state("handle_check") { //this:State
 					action { //it:State
-						CommUtils.outgreen("sonar | Distance OK")
+						CommUtils.outcyan("sonar | Richiesta ricevuta. Distanza rilevata: $Distance")
+						answer("check_distance", "distance_response", "distanceResponse($Distance)"   )  
 						//genTimer( actor, state )
 					}
 					//After Lenzi Aug2002
 					sysaction { //it:State
-				 	 		stateTimer = TimerActor("timer_normal_status", 
-				 	 					  scope, context!!, "local_tout_"+name+"_normal_status", 5000.toLong() )  //OCT2023
 					}	 	 
-					 transition(edgeName="t129",targetState="monitoring",cond=whenTimeout("local_tout_"+name+"_normal_status"))   
-				}	 
-				state("warning_status") { //this:State
-					action { //it:State
-						CommUtils.outyellow("sonar | WARNING")
-						//genTimer( actor, state )
-					}
-					//After Lenzi Aug2002
-					sysaction { //it:State
-				 	 		stateTimer = TimerActor("timer_warning_status", 
-				 	 					  scope, context!!, "local_tout_"+name+"_warning_status", 5000.toLong() )  //OCT2023
-					}	 	 
-					 transition(edgeName="t230",targetState="monitoring",cond=whenTimeout("local_tout_"+name+"_warning_status"))   
-				}	 
-				state("alert_status") { //this:State
-					action { //it:State
-						CommUtils.outred("sonar | ALERT")
-						forward("sensor_data", "sensorData($Distance)" ,"cargoservice" ) 
-						//genTimer( actor, state )
-					}
-					//After Lenzi Aug2002
-					sysaction { //it:State
-				 	 		stateTimer = TimerActor("timer_alert_status", 
-				 	 					  scope, context!!, "local_tout_"+name+"_alert_status", 5000.toLong() )  //OCT2023
-					}	 	 
-					 transition(edgeName="t331",targetState="monitoring",cond=whenTimeout("local_tout_"+name+"_alert_status"))   
+					 transition( edgeName="goto",targetState="idle", cond=doswitch() )
 				}	 
 			}
 		}
