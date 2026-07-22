@@ -10,7 +10,7 @@ MODIFICATO: Aggiunto sonar_recovered per exit da OOS
 System cargosystem
 
 // Allineato a Mosquitto
-mqttBroker "localhost" : 1883   eventTopic "sprint2"
+mqttBroker "localhost" : 1883
 
 // ===== INTERFACCIA CARGO E CONTROLLO =====
 Request load_request        : loadRequest(none)
@@ -19,9 +19,9 @@ Reply load_retrylater       : loadRetryLater(none) for load_request
 Reply load_refused          : loadRefused(none)    for load_request
 
 // ===== INTERFACCIA EVENTI E DISPATCH SONAR =====
-Event container_detected       : containerDetected(none)
-Event sonar_fault              : sonarFault(none)              // Emesso quando D > DFREE per ≥3s
-Event sonar_recovered          : sonarRecovered(none)          // Emesso quando D < DFREE dopo fault
+Dispatch container_detected  : containerDetected(none)
+Dispatch sonar_fault         : sonarFault(none)
+Dispatch sonar_recovered     : sonarRecovered(none)         // Emesso quando D < DFREE dopo fault
 
 Request find_slot_position  : findSlotPosition(SLOTID)
 Reply slot_position         : slotPosition(POSX, POSY) for find_slot_position
@@ -212,21 +212,33 @@ var systemOutOfService = false
 #]
 
 State s0 initial {
-    println("cargoservice | started") color blue
-    [# mqtt.publish("cargo/display/msg", "Inizializzazione...") #]
+    println("cargoservice | Avviato - Iscrizione esclusiva al topic sonar") color blue
+    [# 
+        mqtt.publish("cargo/display/msg", "Inizializzazione...") 
+
+        // Solo cargoservice si iscrive al topic del sonar!
+        mqtt.subscribe("cargo/sonar/events") { topic, msg ->
+            val payload = String(msg.payload)
+            when(payload) {
+                "sonar_fault"        -> this.autoMsg("sonar_fault", "sonarFault(none)")
+                "sonar_recovered"    -> this.autoMsg("sonar_recovered", "sonarRecovered(none)")
+                "container_detected" -> this.autoMsg("container_detected", "containerDetected(none)")
+            }
+        }
+    #]
 }
 Goto disengaged
 
 State disengaged {
-    println("cargoservice | waiting for load request") color green
+    println("cargoservice | waiting for load request or sonar dispatch") color green
     if [# !systemOutOfService #] {
         [# mqtt.publish("cargo/display/msg", "Service working - Pronto per carico") #]
     }
 }
 Transition t0
     whenRequest load_request  -> handle_load_request
-    whenEvent sonar_fault     -> mark_out_of_service
-    whenEvent sonar_recovered -> clear_out_of_service
+    whenMsg sonar_fault       -> mark_out_of_service
+    whenMsg sonar_recovered   -> clear_out_of_service
 
 State mark_out_of_service {
     println("cargoservice | ⚠️  SONAR FAULT: Sistema OUT OF SERVICE") color red
@@ -642,23 +654,29 @@ State check_fault_emit {
 Goto emit_event_fault if [# FaultCounter >= STABLE_READINGS #] else idle
 
 State emit_event_container {
-    println("sonar | CONTAINER CONFERMATO STABILE PER 3s (D=${lastDistance} cm < ${DETECT_THRESHOLD}cm)! Emetto container_detected") color green
-    [# ContainerCounter = 0; FaultCounter = 0 #]
-    emit container_detected : containerDetected(none)
+    println("sonar | CONTAINER RILEVATO! Pubblico su cargo/sonar/events") color green
+    [# 
+        ContainerCounter = 0; FaultCounter = 0
+        mqtt.publish("cargo/sonar/events", "container_detected") 
+    #]
 }
 Goto idle
 
 State emit_event_fault {
-    println("sonar | GUASTO SENSORE CONFERMATO PER 3s (D=${lastDistance} cm > ${DFREE}cm)! Emetto sonar_fault") color red
-    [# ContainerCounter = 0; FaultCounter = 0; isFaulted = true #]
-    emit sonar_fault : sonarFault(none)
+    println("sonar | GUASTO SENSORE! Pubblico su cargo/sonar/events") color red
+    [# 
+        ContainerCounter = 0; FaultCounter = 0; isFaulted = true
+        mqtt.publish("cargo/sonar/events", "sonar_fault") 
+    #]
 }
 Goto idle
 
 State emit_event_recovery {
-    println("sonar | 🟢 PEDANA RILEVATA (D=${lastDistance} cm < ${DFREE}cm) DOPO GUASTO! Emetto sonar_recovered") color green
-    [# ContainerCounter = 0; FaultCounter = 0; isFaulted = false; justRecovered = false #]
-    emit sonar_recovered : sonarRecovered(none)
+    println("sonar | RIPRISTINO SENSORE! Pubblico su cargo/sonar/events") color green
+    [# 
+        ContainerCounter = 0; FaultCounter = 0; isFaulted = false; justRecovered = false
+        mqtt.publish("cargo/sonar/events", "sonar_recovered") 
+    #]
 }
 Goto idle
 
