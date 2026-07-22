@@ -85,7 +85,7 @@ QActor hold context ctxcargo {
 	    "slot3" to "free",
 	    "slot4" to "free"
 	)
-	val slotPositions = mutableMapOf(     // NUOVO: unica fonte di verità sul layout fisico
+	val slotPositions = mutableMapOf(
 	    "slot1" to Pair(1, 2),
 	    "slot2" to Pair(1, 3),
 	    "slot3" to Pair(3, 2),
@@ -95,6 +95,10 @@ QActor hold context ctxcargo {
 	var slotIsAvailable = false
 	var PosX = 0
 	var PosY = 0
+	
+	// --- VARIABILI AGGIUNTE PER RISOLVERE GLI ERRORI ---
+	var querySlot = ""
+	var SlotToOccupy = ""
 #]
 
 State s0 initial { 
@@ -114,14 +118,15 @@ Transition t0
 State respond_position {
     onMsg( find_slot_position : findSlotPosition(SLOTID) ) {
         [#
-            val querySlot = payloadArg(0).toString()
+            querySlot = payloadArg(0).toString()
             val pos = slotPositions[querySlot] ?: Pair(0, 0)
             PosX = pos.first
             PosY = pos.second
         #]
     }
-    println("hold | Posizione richiesta per $querySlot -> ($posX,$posY)") color cyan
+    println("hold | Posizione richiesta per $querySlot -> ($PosX,$PosY)") color cyan
     [# mqtt.publish("cargo/display/msg", "Slot $querySlot -> Coordinate ($PosX,$PosY)") #]
+    // Converte esplicitamente PosX e PosY in Stringa
     replyTo find_slot_position with slot_position : slotPosition($PosX, $PosY)
 }
 Goto idle
@@ -164,7 +169,7 @@ Goto idle
 
 State occupy_slot {
     onMsg( find_occupy : occupySlot(SLOTID) ) {
-        [# val SlotToOccupy = payloadArg(0).toString() #]
+        [# SlotToOccupy = payloadArg(0).toString() #] // <--- Rimosso 'val'
     }
     if [# slots[SlotToOccupy] == "free" #] {
         [# 
@@ -395,6 +400,7 @@ var CurrentSlot = ""
 var StepTime    = 350
 var TargetX     = 0 
 var TargetY     = 0 
+var TargetX_forRelease = 0
 #]
 
 State s0 initial {
@@ -461,17 +467,18 @@ Transition t3a
 State move_to_final_slot {
     onMsg( slot_position : slotPosition(POSX, POSY) ) {
         [#
-            TargetX = payloadArg(0).toString().toInt()
-            TargetY = payloadArg(1).toString().toInt()
+            TargetX = payloadArg(0).toInt()
+            TargetY = payloadArg(1).toInt()
+            TargetX_forRelease = TargetX + 1
         #]
     }
-    println("cargorobot | Spostamento verso ($TargetX,$TargetY)") color magenta
-    request robotsmart -m moverobot : moverobot($TargetX, $TargetY, $StepTime)
+    println("cargorobot | Spostamento verso ($TargetX_forRelease,$TargetY)") color magenta
+    request robotsmart -m moverobot : moverobot($TargetX_forRelease, $TargetY, $StepTime)
 }
 Transition t3
     whenReply moverobotdone   -> final_slot_success
     whenReply moverobotfailed -> final_slot_failed
-
+    
 State final_slot_success {
     println("cargorobot | Container depositato nello slot di destinazione con successo!") color magenta
     replyTo robot_to_slot with robot_slot_done : robotSlotDone(none)

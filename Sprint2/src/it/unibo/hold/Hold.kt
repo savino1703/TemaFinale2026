@@ -36,7 +36,7 @@ class Hold ( name: String, scope: CoroutineScope, isconfined: Boolean=false, isd
 			    "slot3" to "free",
 			    "slot4" to "free"
 			)
-			val slotPositions = mutableMapOf(     // NUOVO: unica fonte di verità sul layout fisico
+			val slotPositions = mutableMapOf(
 			    "slot1" to Pair(1, 2),
 			    "slot2" to Pair(1, 3),
 			    "slot3" to Pair(3, 2),
@@ -46,6 +46,10 @@ class Hold ( name: String, scope: CoroutineScope, isconfined: Boolean=false, isd
 			var slotIsAvailable = false
 			var PosX = 0
 			var PosY = 0
+			
+			// --- VARIABILI AGGIUNTE PER RISOLVERE GLI ERRORI ---
+			var querySlot = ""
+			var SlotToOccupy = ""
 		return { //this:ActionBasciFsm
 				state("s0") { //this:State
 					action { //it:State
@@ -75,12 +79,12 @@ class Hold ( name: String, scope: CoroutineScope, isconfined: Boolean=false, isd
 						if( checkMsgContent( Term.createTerm("findSlotPosition(SLOTID)"), Term.createTerm("findSlotPosition(SLOTID)"), 
 						                        currentMsg.msgContent()) ) { //set msgArgList
 								
-								            val querySlot = payloadArg(0).toString()
+								            querySlot = payloadArg(0).toString()
 								            val pos = slotPositions[querySlot] ?: Pair(0, 0)
 								            PosX = pos.first
 								            PosY = pos.second
 						}
-						CommUtils.outcyan("hold | Posizione richiesta per $querySlot -> ($posX,$posY)")
+						CommUtils.outcyan("hold | Posizione richiesta per $querySlot -> ($PosX,$PosY)")
 						 mqtt.publish("cargo/display/msg", "Slot $querySlot -> Coordinate ($PosX,$PosY)")  
 						answer("find_slot_position", "slot_position", "slotPosition($PosX,$PosY)"   )  
 						//genTimer( actor, state )
@@ -142,7 +146,7 @@ class Hold ( name: String, scope: CoroutineScope, isconfined: Boolean=false, isd
 					action { //it:State
 						if( checkMsgContent( Term.createTerm("occupySlot(SLOTID)"), Term.createTerm("occupySlot(SLOTID)"), 
 						                        currentMsg.msgContent()) ) { //set msgArgList
-								 val SlotToOccupy = payloadArg(0).toString()  
+								 SlotToOccupy = payloadArg(0).toString()  
 						}
 						if(  slots[SlotToOccupy] == "free"  
 						 ){ 

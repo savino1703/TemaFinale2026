@@ -34,6 +34,7 @@ class Cargorobot ( name: String, scope: CoroutineScope, isconfined: Boolean=fals
 		var StepTime    = 350
 		var TargetX     = 0 
 		var TargetY     = 0 
+		var TargetX_forRelease = 0
 		return { //this:ActionBasciFsm
 				state("s0") { //this:State
 					action { //it:State
@@ -143,11 +144,12 @@ class Cargorobot ( name: String, scope: CoroutineScope, isconfined: Boolean=fals
 						if( checkMsgContent( Term.createTerm("slotPosition(POSX,POSY)"), Term.createTerm("slotPosition(POSX,POSY)"), 
 						                        currentMsg.msgContent()) ) { //set msgArgList
 								
-								            TargetX = payloadArg(0).toString().toInt()
-								            TargetY = payloadArg(1).toString().toInt()
+								            TargetX = payloadArg(0).toInt()
+								            TargetY = payloadArg(1).toInt()
+								            TargetX_forRelease = TargetX + 1
 						}
-						CommUtils.outmagenta("cargorobot | Spostamento verso ($TargetX,$TargetY)")
-						request("moverobot", "moverobot($TargetX,$TargetY,$StepTime)" ,"robotsmart" )  
+						CommUtils.outmagenta("cargorobot | Spostamento verso ($TargetX_forRelease,$TargetY)")
+						request("moverobot", "moverobot($TargetX_forRelease,$TargetY,$StepTime)" ,"robotsmart" )  
 						//genTimer( actor, state )
 					}
 					//After Lenzi Aug2002
